@@ -1,0 +1,190 @@
+<!-- === Bouncing Ball + Speed Slider === -->
+<div
+  id="bb-wrap"
+  style="
+    max-width: 1000px;
+    margin: 32px auto;
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+  "
+>
+  <div
+    style="
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    "
+  >
+    <h2 style="margin: 0; font-size: 20px; color: #0f172a">🎾 Bouncing Ball</h2>
+    <div
+      style="margin-left: auto; display: flex; align-items: center; gap: 10px"
+    >
+      <label
+        for="bb-speed"
+        style="font-size: 14px; color: #475569; white-space: nowrap"
+        >Speed</label
+      >
+      <input
+        id="bb-speed"
+        type="range"
+        min="0.2"
+        max="3"
+        step="0.1"
+        value="1"
+        style="width: 220px; accent-color: #0ea5e9"
+      />
+      <div
+        id="bb-speed-out"
+        style="
+          width: 46px;
+          text-align: right;
+          font-variant-numeric: tabular-nums;
+          font-size: 14px;
+          color: #334155;
+        "
+      >
+        1.0×
+      </div>
+    </div>
+  </div>
+
+  <div style="position: relative">
+    <canvas
+      id="bb-canvas"
+      style="
+        width: 100%;
+        height: 220px;
+        display: block;
+        background: linear-gradient(180deg, #f8fafc, #eef2ff);
+        border-radius: 10px;
+        box-shadow: inset 0 0 0 1px #e2e8f0;
+      "
+    ></canvas>
+  </div>
+
+  <p style="margin-top: 10px; font-size: 12px; color: #64748b">
+    Tip: drag the slider right to make the ball move faster.
+  </p>
+</div>
+
+<script>
+  // --- Bouncing Ball Module (no dependencies) ---
+  (() => {
+    const canvas = document.getElementById("bb-canvas");
+    const slider = document.getElementById("bb-speed");
+    const out = document.getElementById("bb-speed-out");
+    const ctx = canvas.getContext("2d", { alpha: false });
+
+    // Internal canvas size matches its CSS size for crisp rendering
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // scale drawing ops back to CSS pixels
+    }
+
+    // Ball state
+    let x = 40,
+      y = 40;
+    let vx = 1,
+      vy = 0.8; // base direction vector
+    const radius = 14;
+    const baseSpeed = 160; // pixels per second at 1.0×
+    let speedScale = parseFloat(slider.value);
+
+    // UI bindings
+    function updateSpeedLabel() {
+      out.textContent = `${Number(speedScale).toFixed(1)}×`;
+    }
+    slider.addEventListener("input", () => {
+      speedScale = parseFloat(slider.value);
+      updateSpeedLabel();
+    });
+    updateSpeedLabel();
+
+    // Animation loop
+    let last = performance.now();
+    function tick(now) {
+      const dt = Math.min(0.032, (now - last) / 1000); // clamp big frames
+      last = now;
+
+      // Physics
+      const speed = baseSpeed * speedScale;
+      x += vx * speed * dt;
+      y += vy * speed * dt;
+
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+
+      // Bounce off edges
+      if (x - radius < 0) {
+        x = radius;
+        vx = Math.abs(vx);
+      }
+      if (x + radius > w) {
+        x = w - radius;
+        vx = -Math.abs(vx);
+      }
+      if (y - radius < 0) {
+        y = radius;
+        vy = Math.abs(vy);
+      }
+      if (y + radius > h) {
+        y = h - radius;
+        vy = -Math.abs(vy);
+      }
+
+      // Draw
+      ctx.clearRect(0, 0, canvas.width, canvas.height); // already in device pixels, but transform is set
+      // Shadow
+      ctx.beginPath();
+      ctx.arc(x + 2, y + 6, radius, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(15,23,42,0.12)";
+      ctx.fill();
+
+      // Ball
+      const grd = ctx.createRadialGradient(
+        x - radius / 3,
+        y - radius / 3,
+        radius / 3,
+        x,
+        y,
+        radius
+      );
+      grd.addColorStop(0, "#22d3ee");
+      grd.addColorStop(1, "#0ea5e9");
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = grd;
+      ctx.fill();
+
+      // Highlight
+      ctx.beginPath();
+      ctx.arc(x - radius / 2.5, y - radius / 2.5, radius / 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fill();
+
+      requestAnimationFrame(tick);
+    }
+
+    // Handle resizing
+    const ro = new ResizeObserver(() => resizeCanvas());
+    ro.observe(canvas.parentElement);
+    window.addEventListener("orientationchange", resizeCanvas, {
+      passive: true,
+    });
+
+    // Init & start
+    resizeCanvas();
+    requestAnimationFrame((t) => {
+      last = t;
+      tick(t);
+    });
+  })();
+</script>
+<!-- === End Bouncing Ball Module === -->
